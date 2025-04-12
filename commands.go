@@ -1,12 +1,18 @@
 package main
 
 import (
+	"blog_aggregator/internal/database"
+	"context"
 	"errors"
 	"fmt"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 type State struct {
-	state *Config
+	db     *database.Queries
+	config *Config
 }
 
 type Command struct {
@@ -39,25 +45,49 @@ func (c *Commands) run(state *State, command Command) error {
 func handlerLogin(state *State, command Command) error {
 
 	if len(command.Args) == 0 {
-		return errors.New("username is required")
-	}
+		return errors.New("please provide an username to use the register command")
 
-	user := command.Args[0]
-	loginError := state.state.GetUserConfig(user)
+	}
+	username := command.Args[0]
+
+	user, loginError := state.db.GetUser(context.Background(), username)
 
 	if loginError != nil {
 		return errors.New("user not present, unable to login")
 	}
+	state.config.SetUser(username)
+
+	fmt.Println("Got user:", user.Name, "With ID:", user.ID)
 	return nil
 }
 
 func handlerRegister(state *State, command Command) error {
 	fmt.Println("Entering Register State")
-	user := command.Args[0]
-	addError := state.state.AddUser(user)
+
+	if len(command.Args) == 0 {
+		return errors.New("please provide an username to use the register command")
+
+	}
+	username := command.Args[0]
+
+	_, getError := state.db.GetUser(context.Background(), username)
+
+	if getError == nil {
+		return errors.New("user already exists, unable to register again")
+	}
+
+	state.config.SetUser(username)
+	arguments := database.CreateUserParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Name:      username,
+	}
+	user, addError := state.db.CreateUser(context.Background(), arguments)
 
 	if addError != nil {
-		return errors.New("user already registered")
+		return errors.New("error registering user")
 	}
+	fmt.Println("User registered with success:", user)
 	return nil
 }
