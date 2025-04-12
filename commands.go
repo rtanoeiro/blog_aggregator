@@ -29,6 +29,7 @@ func getCommands() Commands {
 		handlers: map[string]func(state *State, command Command) error{
 			"login":    handlerLogin,
 			"register": handlerRegister,
+			"reset":    handleReset,
 		},
 	}
 	return commands
@@ -89,5 +90,14 @@ func handlerRegister(state *State, command Command) error {
 		return errors.New("error registering user")
 	}
 	fmt.Println("User registered with success:", user)
+	return nil
+}
+
+func handleReset(state *State, command Command) error {
+	err := state.db.CleanUsers(context.Background())
+
+	if err != nil {
+		return errors.New("unable to truncate the users table")
+	}
 	return nil
 }
