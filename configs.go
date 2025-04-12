@@ -6,8 +6,9 @@ import (
 	"os"
 )
 
-type Config map[string]struct {
-	DBURL string `json:"db_url"`
+type Config struct {
+	CurrentUserName string `json:"current_user"`
+	DBURL           string `json:"db_url"`
 }
 
 func GetHomeDir() string {
@@ -23,7 +24,7 @@ func ReadConfigFile(configPath string) (Config, error) {
 		return Config{}, fileError
 	}
 
-	config := make(Config)
+	config := Config{}
 
 	errUM := json.Unmarshal(fileBytes, &config)
 
@@ -35,17 +36,9 @@ func ReadConfigFile(configPath string) (Config, error) {
 	return config, fileError
 }
 
-func (config *Config) AddUser(username string) error {
+func (config *Config) SetUser(username string) error {
 
-	_, ok := (*config)[username]
-
-	if ok {
-		return fmt.Errorf("%s already present in config, skipping it", username)
-	}
-
-	temp := (*config)[username]
-	temp.DBURL = "postgres://example"
-	(*config)[username] = temp
+	config.CurrentUserName = username
 
 	configJSON, errorMarshal := json.Marshal(config)
 
@@ -59,13 +52,7 @@ func (config *Config) AddUser(username string) error {
 
 func (config *Config) GetUserConfig(username string) error {
 
-	dbURL, ok := (*config)[username]
-
-	if !ok {
-		return fmt.Errorf("user %s not present in config file, unable to retrieve data", username)
-	}
-
-	fmt.Println(username, "already present in config.")
-	fmt.Println("Postgres URL:", dbURL)
+	dbURL := config.DBURL
+	fmt.Println("User Postgres URL:", dbURL)
 	return nil
 }
