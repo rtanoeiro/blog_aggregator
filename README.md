@@ -37,7 +37,7 @@ gator addfeed <url>
 ```
 
 Start the aggregator:
-
+You can run this in a another terminal window or as a daemon
 ```bash
 gator agg 30s
 ```
