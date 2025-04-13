@@ -42,6 +42,9 @@ func getCommands() Commands {
 			"following": func(state *State, command Command) error {
 				return isLogged(state, command, handleGetFollowing)
 			},
+			"unfollow": func(state *State, command Command) error {
+				return isLogged(state, command, handleUnfollowFeed)
+			},
 		},
 	}
 	return commands
@@ -240,5 +243,30 @@ func handleGetFollowing(state *State, command Command) error {
 	for _, following := range followingRows {
 		fmt.Println("Feed Name:", following.Name)
 	}
+	return nil
+}
+
+func handleUnfollowFeed(state *State, command Command) error {
+
+	if len(command.Args) != 1 {
+		return errors.New("when unfollowing a feed, provide the feed link, go run . unfollow <feed_url>")
+	}
+
+	userInfo, userError := state.db.GetUser(context.Background(), state.config.GetCurrentUser())
+
+	if userError != nil {
+		return errors.New("unable to follow feed, user is not registered. register one with go run . / <username>")
+	}
+	arguments := database.UnfollowParams{
+		Url:    command.Args[0],
+		UserID: userInfo.ID,
+	}
+	results, unfollowError := state.db.Unfollow(context.Background(), arguments)
+
+	if unfollowError != nil {
+		return errors.New("unable to unfollow feed")
+	}
+
+	fmt.Println("Unfollow success!\n-User:", results.UserID, "\n-FeedID:", results.FeedID)
 	return nil
 }
