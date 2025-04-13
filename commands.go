@@ -27,15 +27,21 @@ type Commands struct {
 func getCommands() Commands {
 	commands := Commands{
 		handlers: map[string]func(state *State, command Command) error{
-			"login":     handlerLogin,
-			"register":  handlerRegister,
-			"reset":     handleReset,
-			"users":     handleGetUsers,
-			"agg":       handleAgg,
-			"addfeed":   handleAddFeed,
-			"feeds":     handleGetFeeds,
-			"follow":    handleFollowFeed,
-			"following": handleGetFollowing,
+			"login":    handlerLogin,
+			"register": handlerRegister,
+			"reset":    handleReset,
+			"users":    handleGetUsers,
+			"agg":      handleAgg,
+			"addfeed": func(state *State, command Command) error {
+				return isLogged(state, command, handleAddFeed)
+			},
+			"feeds": handleGetFeeds,
+			"follow": func(state *State, command Command) error {
+				return isLogged(state, command, handleFollowFeed)
+			},
+			"following": func(state *State, command Command) error {
+				return isLogged(state, command, handleGetFollowing)
+			},
 		},
 	}
 	return commands
@@ -49,6 +55,16 @@ func (c *Commands) run(state *State, command Command) error {
 	return function(state, command)
 }
 
+func isLogged(state *State, command Command, handler func(state *State, command Command) error) error {
+	_, logged := state.db.GetUser(context.Background(), state.config.CurrentUserName)
+
+	if logged != nil {
+		return errors.New("user not logged in, to run this command, please log in first. go run . login <username>")
+	}
+
+	return handler(state, command)
+}
+
 func handlerLogin(state *State, command Command) error {
 
 	if len(command.Args) == 0 {
@@ -56,15 +72,9 @@ func handlerLogin(state *State, command Command) error {
 
 	}
 	username := command.Args[0]
-
-	user, loginError := state.db.GetUser(context.Background(), username)
-
-	if loginError != nil {
-		return errors.New("user not present, unable to login")
-	}
 	state.config.SetUser(username)
 
-	fmt.Println("-User:", user.Name, "\n- ID:", user.ID)
+	fmt.Println("-User:", username)
 	return nil
 }
 
@@ -76,13 +86,6 @@ func handlerRegister(state *State, command Command) error {
 
 	}
 	username := command.Args[0]
-
-	_, getError := state.db.GetUser(context.Background(), username)
-
-	if getError == nil {
-		return errors.New("user already exists, unable to register again")
-	}
-
 	state.config.SetUser(username)
 	arguments := database.CreateUserParams{
 		ID:        uuid.New(),
