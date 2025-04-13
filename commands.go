@@ -31,6 +31,7 @@ func getCommands() Commands {
 			"register": handlerRegister,
 			"reset":    handleReset,
 			"users":    handleGetUsers,
+			"agg":      handleAgg,
 		},
 	}
 	return commands
@@ -118,6 +119,18 @@ func handleGetUsers(state *State, command Command) error {
 
 		fmt.Println("*", user)
 	}
+
+	return nil
+}
+
+func handleAgg(state *State, command Command) error {
+	results, feedErr := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+
+	if feedErr != nil {
+		return errors.New("failed to get results")
+	}
+	results.CleanFeed()
+	fmt.Println(results)
 
 	return nil
 }

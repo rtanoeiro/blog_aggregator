@@ -2,7 +2,6 @@ package main
 
 import (
 	"blog_aggregator/internal/database"
-	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -38,8 +37,4 @@ func main() {
 	if errorCommand != nil {
 		log.Fatal(errorCommand)
 	}
-	results, _ := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
-	results.CleanFeed()
-	fmt.Println(results.Channel.Item[0])
-
 }
