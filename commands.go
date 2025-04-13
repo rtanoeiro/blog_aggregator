@@ -27,13 +27,15 @@ type Commands struct {
 func getCommands() Commands {
 	commands := Commands{
 		handlers: map[string]func(state *State, command Command) error{
-			"login":    handlerLogin,
-			"register": handlerRegister,
-			"reset":    handleReset,
-			"users":    handleGetUsers,
-			"agg":      handleAgg,
-			"addfeed":  handleAddFeed,
-			"feeds":    handleGetFeeds,
+			"login":     handlerLogin,
+			"register":  handlerRegister,
+			"reset":     handleReset,
+			"users":     handleGetUsers,
+			"agg":       handleAgg,
+			"addfeed":   handleAddFeed,
+			"feeds":     handleGetFeeds,
+			"follow":    handleFollowFeed,
+			"following": handleGetFollowing,
 		},
 	}
 	return commands
@@ -62,7 +64,7 @@ func handlerLogin(state *State, command Command) error {
 	}
 	state.config.SetUser(username)
 
-	fmt.Println("Got user:", user.Name, "With ID:", user.ID)
+	fmt.Println("-User:", user.Name, "\n- ID:", user.ID)
 	return nil
 }
 
@@ -93,7 +95,7 @@ func handlerRegister(state *State, command Command) error {
 	if addError != nil {
 		return errors.New("error registering user")
 	}
-	fmt.Println("User registered with success:", user)
+	fmt.Println("User registered with success. \n-ID:", user.ID, "\n-Name:", user.Name, "\n-CreatedAt:", user.CreatedAt, "\n-UpdatedAt:", user.UpdatedAt)
 	return nil
 }
 
@@ -107,7 +109,7 @@ func handleReset(state *State, command Command) error {
 }
 
 func handleGetUsers(state *State, command Command) error {
-	users, err := state.db.GetUsers(context.Background())
+	users, err := state.db.GetAllUsers(context.Background())
 
 	if err != nil {
 		return errors.New("unable to get users from database")
@@ -151,23 +153,89 @@ func handleAddFeed(state *State, command Command) error {
 	}
 
 	arguments := database.InsertFeedParams{
+		ID:     uuid.New(),
 		Name:   command.Args[0],
 		Url:    command.Args[1],
 		UserID: userInfo.ID,
 	}
-	state.db.InsertFeed(context.Background(), arguments)
+	results, insertFeedError := state.db.InsertFeed(context.Background(), arguments)
+
+	if insertFeedError != nil {
+		return errors.New("unable to add follow feed into table")
+	}
+	fmt.Println("Insert feed with success. \nID:", results.ID, "\n- Name:", results.Name, "\n- URL:", results.Url, "\n- UserID:", results.UserID)
+	followError := handleFollowFeed(state, Command{
+		Name: "follow",
+		Args: []string{results.Url},
+	},
+	)
+
+	if followError != nil {
+		return errors.New("unable to follow feed after adding it")
+	}
 	return nil
 }
 
 func handleGetFeeds(state *State, command Command) error {
-	feedRows, feedError := state.db.GetFeeds(context.Background())
+	feedRows, feedError := state.db.GetAllFeeds(context.Background())
 
 	if feedError != nil {
 		return errors.New("failed to get all feeds")
 	}
 
 	for _, feed := range feedRows {
-		fmt.Println("Feed Name:", feed.Name, "- URL:", feed.Url, "- Username:", feed.Username)
+		fmt.Println("Feed Name:", feed.Name, "\n- URL:", feed.Url, "\n- Username:", feed.Username)
+	}
+	return nil
+}
+
+func handleFollowFeed(state *State, command Command) error {
+
+	if len(command.Args) != 1 {
+		return errors.New("when following a feed, provide the feed link, go run . follow <feed_url>")
+	}
+	feedURL := command.Args[0]
+	feedRow, feedError := state.db.GetFeedFromURL(context.Background(), feedURL)
+	userInfo, userError := state.db.GetUser(context.Background(), state.config.GetCurrentUser())
+
+	if feedError != nil {
+		return errors.New("failed to get feed data or feed doesn't exist, check the full list with go run . feeds")
+	}
+	if userError != nil {
+		return errors.New("unable to follow feed, user is not registered. register one with go run . / <username>")
+	}
+	insertFollowFeed := database.CreateFeedFollowParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    userInfo.ID,
+		FeedID:    feedRow.FeedID,
+	}
+	results, insertFeedError := state.db.CreateFeedFollow(context.Background(), insertFollowFeed)
+
+	if insertFeedError != nil {
+		return errors.New("unable to add follow feed into table")
+	}
+
+	fmt.Println("Follow feed insert success! \n-ID", results.ID, "\n- CreatedAt:", results.CreatedAt, "\n- UpdatedAt:", results.UpdatedAt, "\n- UserID:", results.UserID, "\n- FeedID:", results.FeedID)
+	return nil
+}
+
+func handleGetFollowing(state *State, command Command) error {
+	userInfo, userError := state.db.GetUser(context.Background(), state.config.GetCurrentUser())
+
+	if userError != nil {
+		return errors.New("unable to follow feed, user is not registered. register one with go run . / <username>")
+	}
+
+	followingRows, followingError := state.db.GetFollowedFeedsFromUser(context.Background(), userInfo.ID)
+
+	if followingError != nil {
+		return errors.New("failed to get all following feeds")
+	}
+
+	for _, following := range followingRows {
+		fmt.Println("Feed Name:", following.Name)
 	}
 	return nil
 }
