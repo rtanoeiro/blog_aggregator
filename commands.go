@@ -139,17 +139,74 @@ func handleAgg(state *State, command Command) error {
 	if len(command.Args) != 1 {
 		return errors.New("error getting feed data")
 	}
-	feedURL := command.Args[0]
-	results, feedErr := fetchFeed(context.Background(), feedURL)
+
+	duration := command.Args[0]
+	fmt.Println("Collecting feed every ", duration)
+	timeDuration, _ := time.ParseDuration(duration)
+	ticker := time.NewTicker(timeDuration)
+	for ; ; <-ticker.C {
+		url, nextError := state.db.GetNextFeedToFetch(context.Background())
+		feedRow, _ := state.db.GetFeedFromURL(context.Background(), url)
+
+		if nextError != nil {
+			return errors.New("unable to get the next URL to parse")
+		}
+
+		ScrapeFeed(state, url, feedRow.FeedID.String())
+		fmt.Print("Finshed this round, trying again in the predetermined time\n\n")
+		_ = UpdateLastFetchedAt(state, feedRow.FeedID.String())
+
+	}
+}
+
+func ScrapeFeed(state *State, url string, feedID string) {
+	results, feedErr := fetchFeed(context.Background(), url)
 
 	if feedErr != nil {
-		return errors.New("failed to get results")
+		return
 	}
 	results.CleanFeed()
 
-	return nil
+	for _, item := range results.Channel.Item {
+		exists := checkIfPostExists(state, item.Description, item.Link)
+
+		if exists {
+			continue
+		}
+
+		_, postError := addToPosts(state, item, item.Link, feedID)
+		if postError != nil {
+			fmt.Println("failed to add to posts", postError)
+		}
+	}
 }
 
+func addToPosts(state *State, rssItem RSSItem, url string, feedID string) (database.Post, error) {
+	params := database.InsertPostParams{
+		ID:          uuid.New(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		Title:       rssItem.Title,
+		Url:         url,
+		Description: sql.NullString{String: rssItem.Description, Valid: true},
+		PublishedAt: sql.NullString{String: rssItem.PubDate, Valid: true},
+		FeedID:      uuid.MustParse(feedID),
+	}
+	post, postError := state.db.InsertPost(context.Background(), params)
+
+	return post, postError
+
+}
+
+func checkIfPostExists(state *State, description string, url string) bool {
+	params := database.CheckIfPostExistsParams{
+		Description: sql.NullString{String: description, Valid: true},
+		Url:         url,
+	}
+	_, exists := state.db.CheckIfPostExists(context.Background(), params)
+
+	return exists == nil
+}
 func handleAddFeed(state *State, command Command) error {
 
 	if len(command.Args) != 2 {
@@ -274,5 +331,18 @@ func handleUnfollowFeed(state *State, command Command) error {
 	}
 
 	fmt.Println("Unfollow success!\n-User:", results.UserID, "\n-FeedID:", results.FeedID)
+	return nil
+}
+
+func UpdateLastFetchedAt(state *State, feed_id string) error {
+	params := database.UpdateFetchDateParams{
+		LastFetchedAt: sql.NullTime{Time: time.Now(), Valid: true},
+		ID:            uuid.MustParse(feed_id),
+	}
+	_, updateFetchErr := state.db.UpdateFetchDate(context.Background(), params)
+
+	if updateFetchErr != nil {
+		return errors.New("failed to update last fetched at date")
+	}
 	return nil
 }
