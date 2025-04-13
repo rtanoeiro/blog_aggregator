@@ -32,6 +32,7 @@ func getCommands() Commands {
 			"reset":    handleReset,
 			"users":    handleGetUsers,
 			"agg":      handleAgg,
+			"addfeed":  handleAddFeed,
 		},
 	}
 	return commands
@@ -132,5 +133,27 @@ func handleAgg(state *State, command Command) error {
 	results.CleanFeed()
 	fmt.Println(results)
 
+	return nil
+}
+
+func handleAddFeed(state *State, command Command) error {
+
+	if len(command.Args) != 2 {
+		return errors.New("when adding a new feed, provide the feed name and link, go run . addfeed <feed_name> <feed_url>")
+	}
+
+	currentUser := state.config.GetCurrentUser()
+	userInfo, userError := state.db.GetUser(context.Background(), currentUser)
+
+	if userError != nil {
+		return errors.New("before adding a feed to an user, please add an user first go run . register <username>")
+	}
+
+	arguments := database.InsertFeedParams{
+		Name:   command.Args[0],
+		Url:    command.Args[1],
+		UserID: userInfo.ID,
+	}
+	state.db.InsertFeed(context.Background(), arguments)
 	return nil
 }
