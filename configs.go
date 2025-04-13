@@ -50,6 +50,10 @@ func (config *Config) SetUser(username string) error {
 	return nil
 }
 
+func (config *Config) GetCurrentUser() string {
+	return config.CurrentUserName
+}
+
 func (config *Config) GetUserConfig(username string) error {
 
 	dbURL := config.DBURL
