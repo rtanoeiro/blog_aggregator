@@ -3,7 +3,6 @@ package main
 import (
 	"blog_aggregator/internal/database"
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 
@@ -31,7 +30,6 @@ func main() {
 	state.db = dbQueries
 
 	command := Command{Name: os.Args[1], Args: os.Args[2:]}
-	fmt.Println("Provided command:", command)
 	errorCommand := commands.run(state, command)
 
 	if errorCommand != nil {
