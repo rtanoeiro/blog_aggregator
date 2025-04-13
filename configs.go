@@ -54,9 +54,9 @@ func (config *Config) GetCurrentUser() string {
 	return config.CurrentUserName
 }
 
-func (config *Config) GetUserConfig(username string) error {
+func (config *Config) GetUserConfig(username string) string {
 
 	dbURL := config.DBURL
 	fmt.Println("User Postgres URL:", dbURL)
-	return nil
+	return dbURL
 }
