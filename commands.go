@@ -30,6 +30,7 @@ func getCommands() Commands {
 			"login":    handlerLogin,
 			"register": handlerRegister,
 			"reset":    handleReset,
+			"users":    handleGetUsers,
 		},
 	}
 	return commands
@@ -99,5 +100,24 @@ func handleReset(state *State, command Command) error {
 	if err != nil {
 		return errors.New("unable to truncate the users table")
 	}
+	return nil
+}
+
+func handleGetUsers(state *State, command Command) error {
+	users, err := state.db.GetUsers(context.Background())
+
+	if err != nil {
+		return errors.New("unable to get users from database")
+	}
+
+	for _, user := range users {
+		if user == state.config.GetCurrentUser() {
+			fmt.Println("*", user, "(current)")
+			continue
+		}
+
+		fmt.Println("*", user)
+	}
+
 	return nil
 }
