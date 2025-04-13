@@ -1,2 +1,2 @@
 -- name: CleanUsers :exec
-TRUNCATE TABLE users;
+TRUNCATE TABLE users CASCADE;
