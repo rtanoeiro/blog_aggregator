@@ -7,21 +7,23 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
 
 const insertFeed = `-- name: InsertFeed :one
-INSERT INTO feed (id, name, url, user_id)
-VALUES ($1,$2,$3,$4)
-RETURNING id, name, url, user_id
+INSERT INTO feed (id, name, url, user_id, last_fetched_at)
+VALUES ($1,$2,$3,$4,$5)
+RETURNING id, name, url, user_id, last_fetched_at
 `
 
 type InsertFeedParams struct {
-	ID     uuid.UUID
-	Name   string
-	Url    string
-	UserID uuid.UUID
+	ID            uuid.UUID
+	Name          string
+	Url           string
+	UserID        uuid.UUID
+	LastFetchedAt sql.NullTime
 }
 
 func (q *Queries) InsertFeed(ctx context.Context, arg InsertFeedParams) (Feed, error) {
@@ -30,6 +32,7 @@ func (q *Queries) InsertFeed(ctx context.Context, arg InsertFeedParams) (Feed, e
 		arg.Name,
 		arg.Url,
 		arg.UserID,
+		arg.LastFetchedAt,
 	)
 	var i Feed
 	err := row.Scan(
@@ -37,6 +40,7 @@ func (q *Queries) InsertFeed(ctx context.Context, arg InsertFeedParams) (Feed, e
 		&i.Name,
 		&i.Url,
 		&i.UserID,
+		&i.LastFetchedAt,
 	)
 	return i, err
 }

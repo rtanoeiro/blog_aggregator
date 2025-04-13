@@ -3,6 +3,7 @@ package main
 import (
 	"blog_aggregator/internal/database"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -134,13 +135,17 @@ func handleGetUsers(state *State, command Command) error {
 }
 
 func handleAgg(state *State, command Command) error {
-	results, feedErr := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+
+	if len(command.Args) != 1 {
+		return errors.New("error getting feed data")
+	}
+	feedURL := command.Args[0]
+	results, feedErr := fetchFeed(context.Background(), feedURL)
 
 	if feedErr != nil {
 		return errors.New("failed to get results")
 	}
 	results.CleanFeed()
-	fmt.Println(results)
 
 	return nil
 }
@@ -159,10 +164,11 @@ func handleAddFeed(state *State, command Command) error {
 	}
 
 	arguments := database.InsertFeedParams{
-		ID:     uuid.New(),
-		Name:   command.Args[0],
-		Url:    command.Args[1],
-		UserID: userInfo.ID,
+		ID:            uuid.New(),
+		Name:          command.Args[0],
+		Url:           command.Args[1],
+		UserID:        userInfo.ID,
+		LastFetchedAt: sql.NullTime{Time: time.Now(), Valid: false},
 	}
 	results, insertFeedError := state.db.InsertFeed(context.Background(), arguments)
 
