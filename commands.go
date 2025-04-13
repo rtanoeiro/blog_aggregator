@@ -33,6 +33,7 @@ func getCommands() Commands {
 			"users":    handleGetUsers,
 			"agg":      handleAgg,
 			"addfeed":  handleAddFeed,
+			"feeds":    handleGetFeeds,
 		},
 	}
 	return commands
@@ -155,5 +156,18 @@ func handleAddFeed(state *State, command Command) error {
 		UserID: userInfo.ID,
 	}
 	state.db.InsertFeed(context.Background(), arguments)
+	return nil
+}
+
+func handleGetFeeds(state *State, command Command) error {
+	feedRows, feedError := state.db.GetFeeds(context.Background())
+
+	if feedError != nil {
+		return errors.New("failed to get all feeds")
+	}
+
+	for _, feed := range feedRows {
+		fmt.Println("Feed Name:", feed.Name, "- URL:", feed.Url, "- Username:", feed.Username)
+	}
 	return nil
 }
