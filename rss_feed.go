@@ -78,3 +78,13 @@ func (feed *RSSFeed) CleanFeed() {
 		feed.Channel.Item[i].CleanItems()
 	}
 }
+
+func GetNextFeedToFetch(state *State) string {
+	url, dbError := state.db.GetNextFeedToFetch(context.Background())
+
+	if dbError != nil {
+		return "failed to get list of feeds to fetch"
+	}
+
+	return url
+}
